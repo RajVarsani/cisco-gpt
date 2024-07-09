@@ -18,11 +18,13 @@ import { edgeTypes } from "./edges";
 import { nodeTypes } from "./nodes";
 import { CityNodeData } from "./nodes/CItyNode";
 import {
+  buildTopology,
   CityConnection,
   CustomerData,
   findOptimalNoOfRouters,
   formatRequirements,
 } from "./services/calculation.service";
+import { CustomEdgeData } from "./edges/CustomEdge";
 
 type SimulationCities = {
   city: string;
@@ -104,11 +106,6 @@ const TEMP_CONNECTIONS = [
 ];
 
 export default function App() {
-  const [simulationData, setSimulationData] = useState<SimulationData>({
-    cities: TEMP_CITIES,
-    connections: TEMP_CONNECTIONS,
-  });
-
   const calculatedData = useMemo(() => {
     // Example usage
     const cityData: CityConnection[] = [
@@ -132,23 +129,24 @@ export default function App() {
       requirements,
       maxRequirement
     );
+    const resultsv2 = buildTopology(results);
 
-    console.log(results, requirements, maxRequirement);
+    console.log(results, resultsv2);
 
-    return results;
+    return resultsv2;
   }, []);
 
   const [currentSimulationTime, setCurrentSimulationTime] = useState(
     new Date()
   );
 
-  const nodesAndEdges = useMemo(() => {
+  const nodesAndEdgesv2 = useMemo(() => {
     // Width of each node will be 300, we need to create a circle and arrnage all of them in a ciclular fashion
     const nodeWidth = 300;
-    const radius = (simulationData.cities.length * nodeWidth) / 2;
+    const radius = (calculatedData.nodes.length * nodeWidth) / 2;
 
-    const nodes = simulationData.cities.map((city, index) => {
-      const angle = (index * 2 * Math.PI) / simulationData.cities.length;
+    const nodes = calculatedData.nodes.map((city, index) => {
+      const angle = (index * 2 * Math.PI) / calculatedData.nodes.length;
       const x = radius * Math.cos(angle);
       const y = radius * Math.sin(angle);
 
@@ -156,58 +154,133 @@ export default function App() {
         id: city.city,
         type: "city-node",
         position: { x, y },
-        data: city,
+        data: {
+          ...city,
+          T1Nodes: city.t1Routes,
+          T2Nodes: city.t2Routes,
+          activeT1Nodes: city.t1Routes,
+          activeT2Nodes: city.t2Routes,
+          customers: city.numCustomers,
+        },
       };
     }) satisfies Node<CityNodeData>[];
 
-    const edges = simulationData.connections.map((connection) => {
-      // based on angle, decide the edge source handle and target handle ids
-      const angle = Math.atan2(
-        nodes.find((node) => node.id === connection.target)!.position.y -
-          nodes.find((node) => node.id === connection.source)!.position.y,
-        nodes.find((node) => node.id === connection.target)!.position.x -
-          nodes.find((node) => node.id === connection.source)!.position.x
-      );
-      let sourceHandleId = "";
-      let targetHandleId = "";
+    const edges = calculatedData.connections
+      .filter((item) => !(item.g100PortsUsed === 0 && item.g400PortsUsed === 0))
+      .map((connection) => {
+        // based on angle, decide the edge source handle and target handle ids
+        const angle = Math.atan2(
+          nodes.find((node) => node.id === connection.to)!.position.y -
+            nodes.find((node) => node.id === connection.from)!.position.y,
+          nodes.find((node) => node.id === connection.to)!.position.x -
+            nodes.find((node) => node.id === connection.from)!.position.x
+        );
+        let sourceHandleId = "";
+        let targetHandleId = "";
 
-      if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
-        sourceHandleId = "source-left";
-        targetHandleId = "target-right";
-      } else if (angle > Math.PI && angle < 2 * Math.PI) {
-        sourceHandleId = "source-bottom";
-        targetHandleId = "target-top";
-      } else if (angle > (3 * Math.PI) / 2 && angle < Math.PI) {
-        sourceHandleId = "source-right";
-        targetHandleId = "target-left";
-      } else if (angle > 0 && angle < Math.PI / 2) {
-        sourceHandleId = "source-top";
-        targetHandleId = "target-bottom";
-      }
+        if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
+          sourceHandleId = "source-left";
+          targetHandleId = "target-right";
+        } else if (angle > Math.PI && angle < 2 * Math.PI) {
+          sourceHandleId = "source-bottom";
+          targetHandleId = "target-top";
+        } else if (angle > (3 * Math.PI) / 2 && angle < Math.PI) {
+          sourceHandleId = "source-right";
+          targetHandleId = "target-left";
+        } else if (angle > 0 && angle < Math.PI / 2) {
+          sourceHandleId = "source-top";
+          targetHandleId = "target-bottom";
+        }
 
-      return {
-        id: `${connection.source}->${connection.target}`,
-        source: connection.source,
-        sourceHandle: sourceHandleId,
-        target: connection.target,
-        targetHandle: targetHandleId,
-        animated: true,
-      };
-    }) satisfies Edge[];
+        return {
+          id: `${connection.from}->${connection.to}`,
+          source: connection.from,
+          sourceHandle: sourceHandleId,
+          target: connection.to,
+          targetHandle: targetHandleId,
+          animated: true,
+          type: "custom-edge",
+          data: {
+            // label: `100G: ${connection.g100PortsUsed}, 400G: ${connection.g400PortsUsed}`,
+            G100: connection.g100PortsUsed,
+            G400: connection.g400PortsUsed,
+          },
+        };
+      }) satisfies Edge<CustomEdgeData>[];
 
     return { nodes, edges };
-  }, [simulationData]);
+  }, [calculatedData]);
+
+  // const [simulationData, setSimulationData] = useState<SimulationData>({
+  //   cities: TEMP_CITIES,
+  //   connections: TEMP_CONNECTIONS,
+  // });
+  // const nodesAndEdges = useMemo(() => {
+  //   // Width of each node will be 300, we need to create a circle and arrnage all of them in a ciclular fashion
+  //   const nodeWidth = 300;
+  //   const radius = (simulationData.cities.length * nodeWidth) / 2;
+
+  //   const nodes = simulationData.cities.map((city, index) => {
+  //     const angle = (index * 2 * Math.PI) / simulationData.cities.length;
+  //     const x = radius * Math.cos(angle);
+  //     const y = radius * Math.sin(angle);
+
+  //     return {
+  //       id: city.city,
+  //       type: "city-node",
+  //       position: { x, y },
+  //       data: city,
+  //     };
+  //   }) satisfies Node<CityNodeData>[];
+
+  //   const edges = simulationData.connections.map((connection) => {
+  //     // based on angle, decide the edge source handle and target handle ids
+  //     const angle = Math.atan2(
+  //       nodes.find((node) => node.id === connection.target)!.position.y -
+  //         nodes.find((node) => node.id === connection.source)!.position.y,
+  //       nodes.find((node) => node.id === connection.target)!.position.x -
+  //         nodes.find((node) => node.id === connection.source)!.position.x
+  //     );
+  //     let sourceHandleId = "";
+  //     let targetHandleId = "";
+
+  //     if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
+  //       sourceHandleId = "source-left";
+  //       targetHandleId = "target-right";
+  //     } else if (angle > Math.PI && angle < 2 * Math.PI) {
+  //       sourceHandleId = "source-bottom";
+  //       targetHandleId = "target-top";
+  //     } else if (angle > (3 * Math.PI) / 2 && angle < Math.PI) {
+  //       sourceHandleId = "source-right";
+  //       targetHandleId = "target-left";
+  //     } else if (angle > 0 && angle < Math.PI / 2) {
+  //       sourceHandleId = "source-top";
+  //       targetHandleId = "target-bottom";
+  //     }
+
+  //     return {
+  //       id: `${connection.source}->${connection.target}`,
+  //       source: connection.source,
+  //       sourceHandle: sourceHandleId,
+  //       target: connection.target,
+  //       targetHandle: targetHandleId,
+  //       animated: true,
+  //     };
+  //   }) satisfies Edge[];
+
+  //   return { nodes, edges };
+  // }, [simulationData]);
 
   return (
     <MantineProvider>
       <ReactFlow
-        nodes={nodesAndEdges.nodes}
+        nodes={nodesAndEdgesv2.nodes}
         nodeTypes={nodeTypes}
-        edges={nodesAndEdges.edges}
+        edges={nodesAndEdgesv2.edges}
         edgeTypes={edgeTypes}
         fitView
         nodesConnectable={false}
-        key={JSON.stringify(simulationData)}
+        key={JSON.stringify(calculatedData)}
       >
         <Background />
         <MiniMap />
@@ -243,11 +316,12 @@ export default function App() {
         <Flex w="100%" justify="space-between">
           <Text c="dimmed">Total Power Consumption</Text>
           <Text fw={600}>
-            {simulationData.cities.reduce(
+            {/* {calculatedData.cities.reduce(
               (acc, city) =>
                 acc + city.activeT1Nodes * 250 + city.activeT2Nodes * 350,
               0
-            )}
+            )} */}
+            1000
           </Text>
         </Flex>
       </Flex>
