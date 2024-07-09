@@ -169,7 +169,7 @@ export default function App() {
       .filter((item) => !(item.g100PortsUsed === 0 && item.g400PortsUsed === 0))
       .map((connection) => {
         // based on angle, decide the edge source handle and target handle ids
-        const angle = Math.atan2(
+        const angle = -Math.atan2(
           nodes.find((node) => node.id === connection.to)!.position.y -
             nodes.find((node) => node.id === connection.from)!.position.y,
           nodes.find((node) => node.id === connection.to)!.position.x -
@@ -178,18 +178,26 @@ export default function App() {
         let sourceHandleId = "";
         let targetHandleId = "";
 
-        if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
-          sourceHandleId = "source-left";
-          targetHandleId = "target-right";
-        } else if (angle > Math.PI && angle < 2 * Math.PI) {
-          sourceHandleId = "source-bottom";
-          targetHandleId = "target-top";
-        } else if (angle > (3 * Math.PI) / 2 && angle < Math.PI) {
+        if (angle == 0) {
           sourceHandleId = "source-right";
           targetHandleId = "target-left";
-        } else if (angle > 0 && angle < Math.PI / 2) {
+        } else if (angle == Math.PI || angle == -Math.PI) {
+          sourceHandleId = "source-left";
+          targetHandleId = "target-right";
+        }
+        // angle value is -PI to PI
+        else if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
           sourceHandleId = "source-top";
           targetHandleId = "target-bottom";
+        } else if (angle > (3 * Math.PI) / 2 || angle < -(3 * Math.PI) / 2) {
+          sourceHandleId = "source-left";
+          targetHandleId = "target-right";
+        } else if (angle > -(3 * Math.PI) / 2 && angle < -Math.PI / 2) {
+          sourceHandleId = "source-bottom";
+          targetHandleId = "target-top";
+        } else if (angle > -Math.PI / 2 && angle < Math.PI / 2) {
+          sourceHandleId = "source-right";
+          targetHandleId = "target-left";
         }
 
         return {
@@ -210,66 +218,6 @@ export default function App() {
 
     return { nodes, edges };
   }, [calculatedData]);
-
-  // const [simulationData, setSimulationData] = useState<SimulationData>({
-  //   cities: TEMP_CITIES,
-  //   connections: TEMP_CONNECTIONS,
-  // });
-  // const nodesAndEdges = useMemo(() => {
-  //   // Width of each node will be 300, we need to create a circle and arrnage all of them in a ciclular fashion
-  //   const nodeWidth = 300;
-  //   const radius = (simulationData.cities.length * nodeWidth) / 2;
-
-  //   const nodes = simulationData.cities.map((city, index) => {
-  //     const angle = (index * 2 * Math.PI) / simulationData.cities.length;
-  //     const x = radius * Math.cos(angle);
-  //     const y = radius * Math.sin(angle);
-
-  //     return {
-  //       id: city.city,
-  //       type: "city-node",
-  //       position: { x, y },
-  //       data: city,
-  //     };
-  //   }) satisfies Node<CityNodeData>[];
-
-  //   const edges = simulationData.connections.map((connection) => {
-  //     // based on angle, decide the edge source handle and target handle ids
-  //     const angle = Math.atan2(
-  //       nodes.find((node) => node.id === connection.target)!.position.y -
-  //         nodes.find((node) => node.id === connection.source)!.position.y,
-  //       nodes.find((node) => node.id === connection.target)!.position.x -
-  //         nodes.find((node) => node.id === connection.source)!.position.x
-  //     );
-  //     let sourceHandleId = "";
-  //     let targetHandleId = "";
-
-  //     if (angle > Math.PI / 2 && angle < (3 * Math.PI) / 2) {
-  //       sourceHandleId = "source-left";
-  //       targetHandleId = "target-right";
-  //     } else if (angle > Math.PI && angle < 2 * Math.PI) {
-  //       sourceHandleId = "source-bottom";
-  //       targetHandleId = "target-top";
-  //     } else if (angle > (3 * Math.PI) / 2 && angle < Math.PI) {
-  //       sourceHandleId = "source-right";
-  //       targetHandleId = "target-left";
-  //     } else if (angle > 0 && angle < Math.PI / 2) {
-  //       sourceHandleId = "source-top";
-  //       targetHandleId = "target-bottom";
-  //     }
-
-  //     return {
-  //       id: `${connection.source}->${connection.target}`,
-  //       source: connection.source,
-  //       sourceHandle: sourceHandleId,
-  //       target: connection.target,
-  //       targetHandle: targetHandleId,
-  //       animated: true,
-  //     };
-  //   }) satisfies Edge[];
-
-  //   return { nodes, edges };
-  // }, [simulationData]);
 
   return (
     <MantineProvider>
@@ -304,7 +252,7 @@ export default function App() {
           border: "1px solid rgba(0, 0, 0, 0.1)",
         }}
       >
-        <Flex w="100%" justify="space-between">
+        {/* <Flex w="100%" justify="space-between">
           <Text c="dimmed">Time</Text>
           <Text fw={600}>
             {currentSimulationTime.toLocaleTimeString([], {
@@ -312,16 +260,14 @@ export default function App() {
               minute: "2-digit",
             })}
           </Text>
-        </Flex>
+        </Flex> */}
         <Flex w="100%" justify="space-between">
           <Text c="dimmed">Total Power Consumption</Text>
           <Text fw={600}>
-            {/* {calculatedData.cities.reduce(
-              (acc, city) =>
-                acc + city.activeT1Nodes * 250 + city.activeT2Nodes * 350,
+            {calculatedData.nodes.reduce(
+              (acc, city) => acc + city.t1Routes * 250 + city.t2Routes * 350,
               0
-            )} */}
-            1000
+            )}
           </Text>
         </Flex>
       </Flex>

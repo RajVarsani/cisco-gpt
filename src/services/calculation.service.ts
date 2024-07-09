@@ -239,76 +239,14 @@ export function buildTopology(results: Result[]): Topology {
     return null;
   }
 
-  function findExcessPaths(
-    from: string,
-    to: string,
-    requiredBW: number
-  ): Connection[] | null {
-    const visited: Record<string, boolean> = {};
-    const queue: { city: string; path: Connection[]; bandwidthLeft: number }[] =
-      [{ city: from, path: [], bandwidthLeft: requiredBW }];
-
-    while (queue.length > 0) {
-      const { city, path, bandwidthLeft } = queue.shift()!;
-      const current = path.length ? path[path.length - 1].to : city;
-
-      if (current === to) {
-        return path;
-      }
-
-      if (visited[current]) continue;
-      visited[current] = true;
-
-      for (const conn of connections) {
-        if (
-          (conn.from === current || conn.to === current) &&
-          !visited[conn.from === current ? conn.to : conn.from]
-        ) {
-          const nextCity = conn.from === current ? conn.to : conn.from;
-          const excessBW =
-            conn.g400PortsUsed * 400 +
-            conn.g100PortsUsed * 100 -
-            Math.max(
-              unmetRequirements[conn.from][conn.to] || 0,
-              unmetRequirements[conn.to][conn.from] || 0
-            );
-
-          if (excessBW >= bandwidthLeft) {
-            queue.push({
-              city: nextCity,
-              path: [...path, conn],
-              bandwidthLeft: bandwidthLeft - excessBW,
-            });
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  function satisfyWithIndirectConnections() {
-    for (const src in unmetRequirements) {
-      for (const [dest, remainingBW] of Object.entries(
-        unmetRequirements[src]
-      )) {
-        if (remainingBW > 0) {
-          const path = findExcessPaths(src, dest, remainingBW);
-          console.log({ path });
-          if (path) {
-            path.forEach((conn) => {
-              // Use the excess bandwidth
-              const excessBW =
-                conn.g400PortsUsed * 400 + conn.g100PortsUsed * 100;
-              if (excessBW >= remainingBW) {
-                unmetRequirements[conn.from][conn.to] -= remainingBW;
-                unmetRequirements[conn.to][conn.from] -= remainingBW;
-              }
-            });
-            unmetRequirements[src][dest] = 0;
-            unmetRequirements[dest][src] = 0;
-          }
-        }
-      }
+  function addRouter(city: string, type: "t1" | "t2") {
+    if (type === "t1") {
+      cityData[city].t1Routes += 1;
+      cityData[city].ports.external.g100 += 8;
+      cityData[city].ports.external.g400 += 2;
+    } else {
+      cityData[city].t2Routes += 1;
+      cityData[city].ports.external.g400 += 8;
     }
   }
 
@@ -347,10 +285,31 @@ export function buildTopology(results: Result[]): Topology {
     }
   }
 
-  // Step 3: Satisfy remaining requirements with indirect connections
-  satisfyWithIndirectConnections();
+  // Step 3: Add necessary routers to fulfill unmet requirements
+  for (const city in unmetRequirements) {
+    for (const [targetCity, remainingBW] of Object.entries(
+      unmetRequirements[city]
+    )) {
+      if (remainingBW > 0) {
+        while (remainingBW > 0) {
+          if (remainingBW > 400) {
+            addRouter(city, "t2"); // Add a Type2 router if needed
+          } else {
+            addRouter(city, "t1"); // Add a Type1 router for smaller requirements
+          }
 
-  // TODO: Step 4: If any requirement cannot be met with current ports, plan for additional routers.
+          // Try establishing the connection after adding the router
+          const conn = canDirectlyConnect(city, targetCity, remainingBW);
+          if (conn) {
+            addConnection(city, targetCity, conn.g100, conn.g400);
+            unmetRequirements[city][targetCity] = 0;
+            unmetRequirements[targetCity][city] = 0;
+            break;
+          }
+        }
+      }
+    }
+  }
 
   return { nodes: results, connections };
 }
