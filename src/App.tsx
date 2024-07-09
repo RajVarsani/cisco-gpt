@@ -20,90 +20,13 @@ import { CityNodeData } from "./nodes/CItyNode";
 import {
   buildTopology,
   CityConnection,
+  CityConnectionTime,
   CustomerData,
   findOptimalNoOfRouters,
   formatRequirements,
+  splitTimezones,
 } from "./services/calculation.service";
 import { CustomEdgeData } from "./edges/CustomEdge";
-
-type SimulationCities = {
-  city: string;
-  customers: number;
-  T1Nodes: number;
-  T2Nodes: number;
-  activeT1Nodes: number;
-  activeT2Nodes: number;
-};
-
-type SimulationConnections = {
-  source: string;
-  target: string;
-  t1: number;
-  t2: number;
-};
-
-type SimulationData = {
-  cities: SimulationCities[];
-  connections: SimulationConnections[];
-};
-
-const TEMP_CITIES = [
-  {
-    city: "Delhi",
-    customers: 100,
-    T1Nodes: 10,
-    T2Nodes: 20,
-    activeT1Nodes: 5,
-    activeT2Nodes: 10,
-  },
-  {
-    city: "Mumbai",
-    customers: 200,
-    T1Nodes: 20,
-    T2Nodes: 40,
-    activeT1Nodes: 10,
-    activeT2Nodes: 20,
-  },
-  {
-    city: "Bangalore",
-    customers: 300,
-    T1Nodes: 30,
-    T2Nodes: 60,
-    activeT1Nodes: 15,
-    activeT2Nodes: 30,
-  },
-  {
-    city: "Kolkata",
-    customers: 300,
-    T1Nodes: 30,
-    T2Nodes: 60,
-    activeT1Nodes: 15,
-    activeT2Nodes: 30,
-  },
-  {
-    city: "Surat",
-    customers: 300,
-    T1Nodes: 30,
-    T2Nodes: 60,
-    activeT1Nodes: 15,
-    activeT2Nodes: 30,
-  },
-];
-
-const TEMP_CONNECTIONS = [
-  {
-    source: "Delhi",
-    target: "Mumbai",
-    t1: 10,
-    t2: 20,
-  },
-  {
-    source: "Kolkata",
-    target: "Bangalore",
-    t1: 10,
-    t2: 20,
-  },
-];
 
 export default function App() {
   const calculatedData = useMemo(() => {
@@ -123,6 +46,20 @@ export default function App() {
       ["D", 4],
     ];
 
+    const periodRequirements = [
+      ["1AM-3AM", "A", "B", 0, 0],
+      ["3AM-5AM", "A", "C", 0, 0],
+      ["11PM-1AM", "A", "D", 0, 0],
+      ["1AM-3AM", "B", "C", 0, 0],
+      ["1AM-3AM", "B", "D", 0, 0],
+      ["3AM-5AM", "C", "D", 0, 0],
+      ["3AM-1AM", "A", "B", 400, 400],
+      ["5AM-3AM", "A", "C", 200, 200],
+      ["1AM-11PM", "A", "D", 200, 200],
+      ["5AM-1AM", "B", "C", 200, 200],
+      ["3AM-11PM", "B", "D", 200, 200],
+    ] as CityConnectionTime[];
+
     const { requirements, maxRequirement } = formatRequirements(cityData);
     const results = findOptimalNoOfRouters(
       customerData,
@@ -130,8 +67,9 @@ export default function App() {
       maxRequirement
     );
     const resultsv2 = buildTopology(results);
+    const formattedData = splitTimezones(periodRequirements);
 
-    console.log(results, resultsv2);
+    console.log(results, resultsv2, formattedData);
 
     return resultsv2;
   }, []);

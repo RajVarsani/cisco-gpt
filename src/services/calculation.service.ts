@@ -1,4 +1,5 @@
 export type CityConnection = [string, string, number, number];
+export type CityConnectionTime = [string, string, string, number, number];
 export type CustomerData = [string, number];
 export type Result = {
   city: string;
@@ -312,4 +313,83 @@ export function buildTopology(results: Result[]): Topology {
   }
 
   return { nodes: results, connections };
+}
+
+export function splitTimezones(
+  data: CityConnectionTime[]
+): Map<number, Record<string, Record<string, number>>> {
+  const result: Map<number, Record<string, Record<string, number>>> = new Map();
+
+  // Initialize the 48 intervals
+  for (let i = 0; i < 48; i++) {
+    result.set(i, {});
+  }
+
+  function parseHourString(hourString: string): number {
+    const hour = parseInt(hourString, 10);
+    if (hourString.includes("PM") && hour !== 12) {
+      return hour + 12;
+    }
+    if (hourString.includes("AM") && hour === 12) {
+      return 0;
+    }
+    return hour;
+  }
+
+  function getIntervalIndex(hour: number, minute: number): number {
+    return hour * 2 + minute / 30;
+  }
+
+  function incrementHour(
+    hour: number,
+    minute: number
+  ): { hour: number; minute: number } {
+    if (minute === 0) {
+      return { hour, minute: 30 };
+    } else {
+      return { hour: (hour + 1) % 24, minute: 0 };
+    }
+  }
+
+  data.forEach(([timeRange, city1, city2, peakUpload, peakDownload]) => {
+    let { hour: startHour, minute: startMinute } = {
+      hour: parseHourString(timeRange.split("-")[0]),
+      minute: 0,
+    };
+    const { hour: endHour, minute: endMinute } = {
+      hour: parseHourString(timeRange.split("-")[1]),
+      minute: 0,
+    };
+
+    while (startHour !== endHour || startMinute !== endMinute) {
+      const intervalIndex = getIntervalIndex(startHour, startMinute);
+      const requirements = result.get(intervalIndex) || {};
+
+      if (!requirements[city1]) {
+        requirements[city1] = {};
+      }
+      if (!requirements[city2]) {
+        requirements[city2] = {};
+      }
+
+      // Store the maximum bandwidth requirement in the interval
+      requirements[city1][city2] = Math.max(
+        peakUpload,
+        requirements[city1][city2] || 0
+      );
+      requirements[city2][city1] = Math.max(
+        peakDownload,
+        requirements[city2][city1] || 0
+      );
+
+      result.set(intervalIndex, requirements);
+
+      // Increment the time
+      const { hour, minute } = incrementHour(startHour, startMinute);
+      startHour = hour;
+      startMinute = minute;
+    }
+  });
+
+  return result;
 }
