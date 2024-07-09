@@ -1,6 +1,6 @@
 import "@mantine/core/styles.css";
 
-import { MantineProvider } from "@mantine/core";
+import { Flex, MantineProvider, Text } from "@mantine/core";
 
 import {
   Background,
@@ -102,6 +102,9 @@ export default function App() {
     cities: TEMP_CITIES,
     connections: TEMP_CONNECTIONS,
   });
+  const [currentSimulationTime, setCurrentSimulationTime] = useState(
+    new Date()
+  );
 
   const nodesAndEdges = useMemo(() => {
     // Width of each node will be 300, we need to create a circle and arrnage all of them in a ciclular fashion
@@ -174,6 +177,44 @@ export default function App() {
         <MiniMap />
         <Controls />
       </ReactFlow>
+
+      <Flex
+        bg="white"
+        px={20}
+        py={16}
+        bottom={50}
+        left={"50%"}
+        pos="fixed"
+        direction="column"
+        gap={20}
+        miw={500}
+        style={{
+          transform: "translateX(-50%)",
+          boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+          borderRadius: 12,
+          border: "1px solid rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Flex w="100%" justify="space-between">
+          <Text c="dimmed">Time</Text>
+          <Text fw={600}>
+            {currentSimulationTime.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+        </Flex>
+        <Flex w="100%" justify="space-between">
+          <Text c="dimmed">Total Power Consumption</Text>
+          <Text fw={600}>
+            {simulationData.cities.reduce(
+              (acc, city) =>
+                acc + city.activeT1Nodes * 250 + city.activeT2Nodes * 350,
+              0
+            )}
+          </Text>
+        </Flex>
+      </Flex>
     </MantineProvider>
   );
 }
