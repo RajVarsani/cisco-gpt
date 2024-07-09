@@ -15,10 +15,12 @@ import "reactflow/dist/style.css";
 
 import { useMemo, useState } from "react";
 import { edgeTypes } from "./edges";
+import { CustomEdgeData } from "./edges/CustomEdge";
 import { nodeTypes } from "./nodes";
 import { CityNodeData } from "./nodes/CItyNode";
 import {
   buildTopology,
+  calculatePowerConsumption,
   CityConnection,
   CityConnectionTime,
   CustomerData,
@@ -26,10 +28,9 @@ import {
   formatRequirements,
   splitTimezones,
 } from "./services/calculation.service";
-import { CustomEdgeData } from "./edges/CustomEdge";
 
 export default function App() {
-  const calculatedData = useMemo(() => {
+  const { resultsv2: calculatedData, powerResults } = useMemo(() => {
     // Example usage
     const cityData: CityConnection[] = [
       ["A", "B", 400, 400],
@@ -69,9 +70,11 @@ export default function App() {
     const resultsv2 = buildTopology(results);
     const formattedData = splitTimezones(periodRequirements);
 
-    console.log(results, resultsv2, formattedData);
+    const powerResults = calculatePowerConsumption(results, formattedData);
 
-    return resultsv2;
+    console.log(results, resultsv2, formattedData, powerResults);
+
+    return { resultsv2, powerResults };
   }, []);
 
   const [currentSimulationTime, setCurrentSimulationTime] = useState(
@@ -201,12 +204,7 @@ export default function App() {
         </Flex> */}
         <Flex w="100%" justify="space-between">
           <Text c="dimmed">Total Power Consumption</Text>
-          <Text fw={600}>
-            {calculatedData.nodes.reduce(
-              (acc, city) => acc + city.t1Routes * 250 + city.t2Routes * 350,
-              0
-            )}
-          </Text>
+          <Text fw={600}>{powerResults.averagePower}W</Text>
         </Flex>
       </Flex>
     </MantineProvider>

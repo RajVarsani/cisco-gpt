@@ -393,3 +393,53 @@ export function splitTimezones(
 
   return result;
 }
+
+export type TimezoneMap = Map<number, Record<string, Record<string, number>>>;
+
+export function calculatePowerConsumption(
+  results: Result[],
+  timezones: TimezoneMap
+) {
+  const powerConsumptionPerInterval: number[] = [];
+  let totalSystemPower = 0;
+
+  // Iterating through all time intervals (0-47 for each half-hour in a day)
+  timezones.forEach((requirements) => {
+    let totalPowerForInterval = 0;
+
+    // Adjust active nodes based on demand
+    results.forEach((cityNode) => {
+      const cityRequirements = requirements[cityNode.city] || {};
+
+      let totalRequired100G = 0;
+      let totalRequired400G = 0;
+
+      Object.values(cityRequirements).forEach((bandwidth) => {
+        totalRequired100G += Math.ceil(bandwidth / 100);
+        totalRequired400G += Math.ceil(bandwidth / 400);
+      });
+
+      // Calculate how many nodes need to be active
+      const requiredT1Routes = Math.ceil(totalRequired100G / 8);
+      const requiredT2Routes = Math.ceil(totalRequired400G / 8);
+
+      const activeT1Nodes = Math.min(requiredT1Routes, cityNode.t1Routes);
+      const activeT2Nodes = Math.min(requiredT2Routes, cityNode.t2Routes);
+
+      // Calculate power consumption for this node during this interval
+      const nodePower = activeT1Nodes * 250 + activeT2Nodes * 350;
+      totalPowerForInterval += nodePower;
+    });
+
+    // Store the power consumption for this interval
+    powerConsumptionPerInterval.push(totalPowerForInterval);
+    totalSystemPower += totalPowerForInterval;
+  });
+
+  const averagePower = totalSystemPower / 48; // Total intervals in a day = 48 (24 hours * 2)
+
+  return {
+    powerConsumptionPerInterval,
+    averagePower,
+  };
+}
