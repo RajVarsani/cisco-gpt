@@ -17,6 +17,12 @@ import { useMemo, useState } from "react";
 import { edgeTypes } from "./edges";
 import { nodeTypes } from "./nodes";
 import { CityNodeData } from "./nodes/CItyNode";
+import {
+  CityConnection,
+  CustomerData,
+  findOptimalNoOfRouters,
+  formatRequirements,
+} from "./services/calculation.service";
 
 type SimulationCities = {
   city: string;
@@ -102,6 +108,36 @@ export default function App() {
     cities: TEMP_CITIES,
     connections: TEMP_CONNECTIONS,
   });
+
+  const calculatedData = useMemo(() => {
+    // Example usage
+    const cityData: CityConnection[] = [
+      ["A", "B", 400, 400],
+      ["A", "C", 200, 200],
+      ["A", "D", 200, 200],
+      ["B", "C", 200, 200],
+      ["B", "D", 200, 200],
+    ];
+
+    const customerData: CustomerData[] = [
+      ["A", 8],
+      ["C", 4],
+      ["B", 8],
+      ["D", 4],
+    ];
+
+    const { requirements, maxRequirement } = formatRequirements(cityData);
+    const results = findOptimalNoOfRouters(
+      customerData,
+      requirements,
+      maxRequirement
+    );
+
+    console.log(results, requirements, maxRequirement);
+
+    return results;
+  }, []);
+
   const [currentSimulationTime, setCurrentSimulationTime] = useState(
     new Date()
   );
